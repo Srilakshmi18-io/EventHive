@@ -1,0 +1,6 @@
+{
+  "name": "EventHive - Multi-Tenant Event & Ticket Reservation System",
+  "description": "High-concurrency multi-tenant event and ticket reservation platform with atomic tier locks, idempotency, background hold expiry, and real-time analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

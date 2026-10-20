@@ -1,0 +1,312 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+import { useAuth } from '../../context/AuthContext';
+import { eventService } from '../../services/eventService';
+import { AnalyticsSummary } from '../../types';
+import { KpiCard } from '../../components/analytics/KpiCard';
+import { Badge } from '../../components/common/Badge';
+import { Button } from '../../components/common/Button';
+import {
+  DollarSign,
+  Ticket,
+  Clock,
+  TrendingUp,
+  PlusCircle,
+  Calendar,
+  Layers,
+  ArrowRight,
+  RefreshCw,
+  Building2,
+} from 'lucide-react';
+
+export const OrganizerDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAnalytics = async () => {
+    if (!user) return;
+    const data = await eventService.getAnalytics(user, user.id);
+    setAnalytics(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+    // Real-time auto-refreshing analytics interval (every 8s)
+    const interval = setInterval(fetchAnalytics, 8000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-48 bg-gray-200 rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="h-28 bg-gray-200 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!analytics) return null;
+
+  return (
+    <div className="space-y-8">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#6D28D9] mb-1">
+            <Building2 className="w-3.5 h-3.5" />
+            <span>{user?.organizationName || 'Organizer Portal'}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+            Organizer Performance &amp; Analytics
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Multi-tenant isolated dashboard: Real-time ticket sales, active inventory holds, and conversion metrics.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link to="/organizer/events/new">
+            <Button variant="primary" size="sm" icon={<PlusCircle className="w-4 h-4" />}>
+              Create New Event
+            </Button>
+          </Link>
+          <button
+            onClick={fetchAnalytics}
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition cursor-pointer"
+            title="Refresh Metrics"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* 4 Real-time KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <KpiCard
+          title="Total Gross Revenue"
+          value={`$${analytics.totalRevenue.toLocaleString()}`}
+          subtitle="From confirmed paid orders"
+          icon={DollarSign}
+          variant="purple"
+          trend={{ value: '+14% vs last week', isPositive: true }}
+        />
+        <KpiCard
+          title="Tickets Sold"
+          value={analytics.totalTicketsSold}
+          subtitle="Issued across all events"
+          icon={Ticket}
+          variant="emerald"
+          trend={{ value: '+8% volume', isPositive: true }}
+        />
+        <KpiCard
+          title="Active Holds in Checkout"
+          value={analytics.activeHoldsCount}
+          subtitle="Locked by buyers right now"
+          icon={Clock}
+          variant="amber"
+        />
+        <KpiCard
+          title="Hold-to-Sale Conversion"
+          value={`${analytics.conversionRate}%`}
+          subtitle="Paid orders / total holds created"
+          icon={TrendingUp}
+          variant="blue"
+          trend={{ value: 'High efficiency', isPositive: true }}
+        />
+      </div>
+
+      {/* Charts Section: Revenue Line Chart & Tier Bar Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left: Revenue Over Time Line Chart */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Revenue Velocity Over Time</h2>
+              <p className="text-xs text-gray-500">Gross sales ($) generated by day</p>
+            </div>
+            <span className="text-[11px] font-mono text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-full">
+              Live Feed
+            </span>
+          </div>
+
+          <div className="h-64 w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={analytics.revenueOverTime}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis dataKey="date" stroke="#9CA3AF" fontSize={11} tickLine={false} />
+                <YAxis
+                  stroke="#9CA3AF"
+                  fontSize={11}
+                  tickLine={false}
+                  tickFormatter={(val) => `$${val}`}
+                />
+                <Tooltip
+                  formatter={(value: unknown) => [`$${value}`, 'Revenue']}
+                  contentStyle={{
+                    backgroundColor: '#111827',
+                    borderRadius: '0.75rem',
+                    border: 'none',
+                    color: '#FFF',
+                    fontSize: '12px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#6D28D9"
+                  strokeWidth={3}
+                  dot={{ fill: '#6D28D9', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, fill: '#7C3AED' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Right: Tier Sales Volume Bar Chart */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Tickets Sold Per Tier</h2>
+            <p className="text-xs text-gray-500">Comparative demand across ticket categories</p>
+          </div>
+
+          <div className="h-64 w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.tierSales} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+                <XAxis type="number" stroke="#9CA3AF" fontSize={11} tickLine={false} />
+                <YAxis
+                  dataKey="tierName"
+                  type="category"
+                  stroke="#9CA3AF"
+                  fontSize={10}
+                  tickLine={false}
+                  width={80}
+                />
+                <Tooltip
+                  formatter={(value: unknown) => [`${value} tickets`, 'Sold']}
+                  contentStyle={{
+                    backgroundColor: '#111827',
+                    borderRadius: '0.75rem',
+                    border: 'none',
+                    color: '#FFF',
+                    fontSize: '12px',
+                  }}
+                />
+                <Bar dataKey="sold" fill="#10B981" radius={[0, 6, 6, 0]} barSize={16} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Tier Inventory Breakdown (Sold vs Held vs Available) */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Tier Capacity &amp; Allocation Breakdown</h2>
+            <p className="text-xs text-gray-500">Real-time status of sold, held, and available seats per tier</p>
+          </div>
+          <span className="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+            Atomic Mutex Synchronized
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold uppercase">
+              <tr>
+                <th className="py-3 px-4">Tier Name</th>
+                <th className="py-3 px-4">Sold (Paid)</th>
+                <th className="py-3 px-4">Active Holds (10m)</th>
+                <th className="py-3 px-4">Remaining Available</th>
+                <th className="py-3 px-4">Gross Revenue</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {analytics.tierSales.map((tier, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/60 transition">
+                  <td className="py-3.5 px-4 font-bold text-gray-900">{tier.tierName}</td>
+                  <td className="py-3.5 px-4 font-semibold text-emerald-700">
+                    {tier.sold} sold
+                  </td>
+                  <td className="py-3.5 px-4 font-semibold text-amber-600">
+                    {tier.held} held
+                  </td>
+                  <td className="py-3.5 px-4 font-semibold text-purple-700">
+                    {tier.available} left
+                  </td>
+                  <td className="py-3.5 px-4 font-bold text-gray-900">
+                    ${tier.revenue.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Recent Orders Table */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">Recent Customer Orders</h2>
+          <span className="text-xs text-gray-500">Latest checkout completions</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold uppercase">
+              <tr>
+                <th className="py-3 px-4">Order Ref</th>
+                <th className="py-3 px-4">Attendee</th>
+                <th className="py-3 px-4">Event &amp; Tier</th>
+                <th className="py-3 px-4">Quantity</th>
+                <th className="py-3 px-4">Total</th>
+                <th className="py-3 px-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {analytics.recentOrders.slice(0, 5).map((ord) => (
+                <tr key={ord.id} className="hover:bg-gray-50/60 transition">
+                  <td className="py-3.5 px-4 font-mono font-medium text-gray-900">{ord.id}</td>
+                  <td className="py-3.5 px-4 font-medium text-gray-900">
+                    <div>{ord.attendeeName}</div>
+                    <div className="text-[11px] text-gray-400">{ord.attendeeEmail}</div>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <div className="font-semibold text-gray-900">{ord.eventTitle}</div>
+                    <div className="text-[11px] text-purple-700">{ord.tierName}</div>
+                  </td>
+                  <td className="py-3.5 px-4 font-semibold text-gray-700">{ord.quantity}x</td>
+                  <td className="py-3.5 px-4 font-bold text-gray-900">${ord.totalAmount}</td>
+                  <td className="py-3.5 px-4">
+                    <Badge variant={ord.status === 'PAID' ? 'success' : 'warning'} size="sm">
+                      {ord.status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
